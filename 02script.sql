@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS parameter_types CASCADE;
 DROP TABLE IF EXISTS units CASCADE;
 DROP TABLE IF EXISTS base_units CASCADE;
 
--- создание нормализованных справочников и таблиц
+-- создание нормализованных таблиц
 CREATE TABLE base_units (
     base_unit_id INT PRIMARY KEY,
     name VARCHAR(100) NOT NULL
@@ -46,58 +46,48 @@ COMMENT ON COLUMN measurement_parameters.pack_id IS 'Ссылка на пачк�
 COMMENT ON COLUMN measurement_parameters.parameter_type_id IS 'Ссылка на тип параметра';
 COMMENT ON COLUMN measurement_parameters.parameter_value IS 'Числовое значение параметра';
 
--- заполнение справочников 
+-- заполнение справочников
 INSERT INTO base_units (base_unit_id, name) VALUES 
 (1, 'Давление'),
-(2, 'Температура');
+(2, 'Температура'),
+(3, 'Влажность'),
+(4, 'Скорость ветра'),
+(5, 'Направление ветра');
 
 INSERT INTO units (unit_id, name, short_name, base_unit_id) VALUES 
 (1, 'Миллиметр ртутного столба', 'мм рт. ст.', 1),
-(2, 'Градус Цельсия', '°C', 2);
+(2, 'Градус Цельсия', '°C', 2),
+(3, 'Процент', '%', 3),
+(4, 'Метр в секунду', 'м/с', 4),
+(5, 'Градус', 'deg', 5);
 
 INSERT INTO parameter_types (parameter_type_id, name, unit_id) VALUES 
 (1, 'Давление', 1),
-(2, 'Температура', 2);
+(2, 'Температура', 2),
+(3, 'Влажность', 3),
+(4, 'Скорость ветра', 4),
+(5, 'Направление ветра', 5);
 
 
--- давление из формата '765 мм / 28 C' -> 765.00
+WITH parsed_data AS (
+    SELECT 
+        p.pack_id,
+        parsed.ord AS parameter_type_id,
+        CAST(parsed.val[1] AS NUMERIC(10,2)) AS parameter_value
+    FROM packs p
+    JOIN parametrs pr ON p.parametr_id = pr.parametr_id
+    CROSS JOIN LATERAL (
+        SELECT 
+            ROW_NUMBER() OVER () AS ord,
+            m AS val
+        FROM regexp_matches(pr.param_value, '([0-9]+(?:\.[0-9]+)?)', 'g') AS m
+    ) parsed
+)
 INSERT INTO measurement_parameters (pack_id, parameter_type_id, parameter_value)
-SELECT 
-    p.pack_id,
-    1 AS parameter_type_id,
-    CAST(split_part(trim(split_part(pr.param_value, '/', 1)), ' ', 1) AS NUMERIC(10,2))
-FROM packs p
-JOIN parametrs pr ON p.parametr_id = pr.parametr_id;
+SELECT pack_id, parameter_type_id, parameter_value
+FROM parsed_data;
 
--- температура из формата '765 мм / 28 C' -> 28.00
-INSERT INTO measurement_parameters (pack_id, parameter_type_id, parameter_value)
-SELECT 
-    p.pack_id,
-    2 AS parameter_type_id,
-    CAST(split_part(trim(split_part(pr.param_value, '/', 2)), ' ', 1) AS NUMERIC(10,2))
-FROM packs p
-JOIN parametrs pr ON p.parametr_id = pr.parametr_id;
-
--- удаление устаревших связей и старой таблицы
+-- Удаляем старую ненормализованную таблицу
 ALTER TABLE packs DROP CONSTRAINT IF EXISTS packs_parametr_id_fkey;
 ALTER TABLE packs DROP COLUMN IF EXISTS parametr_id CASCADE;
 DROP TABLE IF EXISTS parametrs CASCADE;
-
-SELECT 
-    p.pack_number AS "Номер пачки",
-    u.full_name AS "ФИО сотрудника",
-    pos.title AS "Должность",
-    eq.type_name AS "Тип оборудования",
-    pt.name || ', ' || un.short_name AS "Параметр (ед. изм.)",
-    mp.parameter_value AS "Значение"
-FROM 
-    packs p
-    JOIN users u ON u.user_id = p.user_id
-    JOIN positions pos ON pos.position_id = u.position_id
-    JOIN equipment_types eq ON eq.equipment_type_id = p.equipment_type_id
-    JOIN measurement_parameters mp ON mp.pack_id = p.pack_id
-    JOIN parameter_types pt ON pt.parameter_type_id = mp.parameter_type_id
-    JOIN units un ON un.unit_id = pt.unit_id
-ORDER BY 
-    p.pack_id ASC,
-    pt.parameter_type_id ASC;
