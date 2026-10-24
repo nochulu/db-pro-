@@ -33,7 +33,7 @@ COMMENT ON TABLE equipment_types IS 'Список типов оборудова�
 COMMENT ON COLUMN equipment_types.equipment_type_id IS 'уникальный код типа оборудования';
 COMMENT ON COLUMN equipment_types.type_name IS 'название типа оборудования';
 
---параметры
+--параметры 
 CREATE TABLE parametrs (
     parametr_id INT PRIMARY KEY,
     param_name VARCHAR NOT NULL,
@@ -74,10 +74,9 @@ INSERT INTO equipment_types (equipment_type_id, type_name) VALUES
 (21, 'ДМК'), (22, 'ВР');
 
 INSERT INTO parametrs (parametr_id, param_name, param_value) VALUES 
-(31, 'Метеокомплекс 1', '765 мм / 28 C / 55 % / 3.5 м/с / 180 deg'),
-(32, 'Метеокомплекс 2', '743 мм / 18 C / 62 % / 5.1 м/с / 270 deg');
+(31, 'Метеокомплекс ДМК', '100 м / 25 C / 765 мм рт. ст. / 15 / 6 м/с'),
+(32, 'Метеокомплекс ВР', '120 м / 18 C / 743 мм рт. ст. / 30 / 50 м');
 
 INSERT INTO packs (pack_id, pack_number, user_id, position_id, equipment_type_id, parametr_id) VALUES 
 (41, 'pack-123', 11, 1, 21, 31),
 (42, 'pack-124', 12, 2, 22, 32);
-
