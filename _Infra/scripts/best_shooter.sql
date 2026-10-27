@@ -17,12 +17,13 @@ with user_packs_pivoted as (
 evaluated_errors as (
     select 
         "Пользователь",
-        case when check_meteo_error((h, t, prs, wd, ws, dr)::meteo_params_type) <> '' then 1 else 0 end as error_count
+        check_meteo_error((h, t, prs, wd, ws, dr)::meteo_params_type) as error_desc
     from user_packs_pivoted
 )
 select 
     "Пользователь",
-    sum(error_count) as "Количество допущенных ошибок"
+    nullif(string_agg(nullif(error_desc, ''), ' | '), '') as "Список ошибок",
+    count(case when error_desc <> '' then 1 end) as "Количество допущенных ошибок"
 from evaluated_errors
 group by "Пользователь"
 order by "Количество допущенных ошибок" asc;
